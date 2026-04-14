@@ -111,13 +111,24 @@ class AceInstance:
         self.status_debug_logging = bool(ace_config.get("status_debug_logging", False))
         self.supervision_enabled = bool(ace_config.get("ace_connection_supervision", True))
 
+        # Resolve per-instance serial_path override (see config.py).
+        raw_paths = ace_config.get("serial_path")
+        resolved_path = None
+        if raw_paths:
+            paths = [p.strip() for p in str(raw_paths).split(",") if p.strip()]
+            if len(paths) == 1 and instance_num == 0:
+                resolved_path = paths[0]
+            elif instance_num < len(paths):
+                resolved_path = paths[instance_num]
+
         self.serial_mgr = AceSerialManager(
             self.gcode,
             self.reactor,
             instance_num,
             ace_enabled=ace_enabled,
             status_debug_logging=self.status_debug_logging,
-            supervision_enabled=self.supervision_enabled
+            supervision_enabled=self.supervision_enabled,
+            serial_path=resolved_path,
         )
         self.tool_offset = get_tool_offset(self.instance_num)
         self.serial_mgr.set_heartbeat_callback(self._on_heartbeat_response)

@@ -35,7 +35,8 @@ class AceSerialManager:
             instance_num=0,
             ace_enabled=True,
             status_debug_logging=False,
-            supervision_enabled=True):
+            supervision_enabled=True,
+            serial_path=None):
         """
         Initialize serial manager.
 
@@ -50,6 +51,7 @@ class AceSerialManager:
         self._port = None
         self._usb_location = None
         self._baud = None
+        self._explicit_serial_path = serial_path
 
         self.gcode = gcode
         self.reactor = reactor
@@ -522,10 +524,16 @@ class AceSerialManager:
 
     def auto_connect(self, instance, baud):
         """Attempt to connect to ACE device."""
-        port = self.find_com_port('ACE', instance)
-        if port is None:
-            self.gcode.respond_info(f'ACE[{instance}]: No ACE device found')
-            return False
+        if self._explicit_serial_path:
+            port = self._explicit_serial_path
+            logging.info(
+                f'ACE[{instance}]: Using explicit serial_path override: {port}'
+            )
+        else:
+            port = self.find_com_port('ACE', instance)
+            if port is None:
+                self.gcode.respond_info(f'ACE[{instance}]: No ACE device found')
+                return False
 
         self._port = port
         self._baud = baud

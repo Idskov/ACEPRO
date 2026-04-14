@@ -107,6 +107,12 @@ def read_ace_config(config):
 
     # Non-overridable settings (apply to all instances)
     ace_config["ace_count"] = config.getint("ace_count", 1)
+    # Optional: explicit serial path(s) to bypass pyserial auto-detection.
+    # Needed when the ACE connection reaches the host via a USB gadget
+    # endpoint (/dev/ttyGS*) or any other device not exposed in comports().
+    # Single path: 'serial_path: /dev/ttyGS2'
+    # Multiple:    'serial_path: /dev/ttyGS2,/dev/ttyGS3'  (per instance)
+    ace_config["serial_path"] = config.get("serial_path", None)
     ace_config["baud"] = config.getint("baud", 115200)
     ace_config["filament_runout_sensor_name_rdm"] = config.get(
         "filament_runout_sensor_name_rdm", None
