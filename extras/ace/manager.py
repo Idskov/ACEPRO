@@ -127,6 +127,14 @@ class AceManager:
 
         self.toolhead_retraction_speed = float(self.ace_config["toolhead_retraction_speed"])
         self.toolhead_retraction_length = float(self.ace_config["toolhead_retraction_length"])
+        # Mid-print toolchange retract override. When > 0, replaces the
+        # parkposition_to_toolhead_length + toolhead_retraction_length default
+        # in the sensor-triggered unload path (coordinated retract in
+        # smart_unload). Tune via `mid_print_unload_bowden_length` and
+        # `mid_print_unload_extruder_length` in the ACE instance config.
+        # 0 = fall back to existing geometry for backward compatibility.
+        self.mid_print_unload_bowden_length = float(self.ace_config.get("mid_print_unload_bowden_length", 0) or 0)
+        self.mid_print_unload_extruder_length = float(self.ace_config.get("mid_print_unload_extruder_length", 0) or 0)
         self.default_color_change_purge_length = float(self.ace_config["default_color_change_purge_length"])
         self.default_color_change_purge_speed = float(self.ace_config["default_color_change_purge_speed"])
         self.toolchange_purge_length = self.default_color_change_purge_length
@@ -884,22 +892,28 @@ class AceManager:
                     )
                     instance._disable_feed_assist(local_slot)
 
+                # Resolve retract lengths. Overrides allow shorter retracts for
+                # printers where the RDM sensor gates the common-path clearance
+                # (tested: bowden 650 + extruder 30 on Kobra S1 leaves the tip
+                # past the hub with ~30mm margin, vs. stock's 840+40 full-park).
+                mid_ext_len = self.mid_print_unload_extruder_length or retract_length
+                mid_ace_total = self.mid_print_unload_bowden_length or parkposition_to_toolhead_length
+
                 self.gcode.respond_info(
                     f"ACE: Retracting T{tool_index} "
-                    f"({retract_length:.3f}mm at {retract_speed:.3f}mm/s)"
+                    f"(extruder {mid_ext_len:.1f}mm + ACE {mid_ace_total:.1f}mm @ {retract_speed:.1f}mm/s)"
                 )
 
-                # Start extruder retraction (10% faster for slack)
-                self._extruder_move(-abs(retract_length), retract_speed * 1.10, wait_for_move_end=False)
+                # Sequential: extruder first (ACE motor idle since feed assist
+                # is already disabled above), pulls tip past the hobbed gears.
+                # Then ACE retracts alone; no race, no mangling risk.
+                self._extruder_move(-abs(mid_ext_len), retract_speed, wait_for_move_end=True)
 
-                # Start ACE retraction
+                # ACE retract — tip is already past the extruder gears
                 unload_ok = instance._smart_unload_slot(
                     local_slot,
-                    length=parkposition_to_toolhead_length + retract_length,
+                    length=mid_ace_total,
                 )
-
-                # Wait for extruder to finish
-                self._wait_toolhead_move_finished()
 
                 if unload_ok and self.is_filament_path_free_instant():
                     self.state.set("ace_filament_pos", FILAMENT_STATE_BOWDEN)

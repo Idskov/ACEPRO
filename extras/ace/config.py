@@ -136,6 +136,13 @@ def read_ace_config(config):
     ace_config["parkposition_to_rdm_length"] = config.getint("parkposition_to_rdm_length", 150)
     ace_config["toolhead_retraction_speed"] = config.getint("toolhead_retraction_speed", 10)
     ace_config["toolhead_retraction_length"] = config.getint("toolhead_retraction_length", 40)
+    # Optional overrides for the mid-print toolchange unload path (sensor
+    # triggered). When > 0, these replace the
+    # parkposition_to_toolhead_length + toolhead_retraction_length default
+    # so a printer with an RDM sensor in the common path can retract only
+    # as far as needed to clear the hub. 0 = backward-compatible default.
+    ace_config["mid_print_unload_bowden_length"] = config.getint("mid_print_unload_bowden_length", 0)
+    ace_config["mid_print_unload_extruder_length"] = config.getint("mid_print_unload_extruder_length", 0)
     ace_config["toolhead_full_purge_length"] = config.getint("toolhead_full_purge_length", 22)
     ace_config["toolhead_slow_loading_speed"] = config.getint("toolhead_slow_loading_speed", 5)
     ace_config["extruder_feeding_length"] = config.getint("extruder_feeding_length", 1)
