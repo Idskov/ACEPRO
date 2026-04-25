@@ -297,6 +297,14 @@ class RunoutMonitor:
                 except Exception as e:
                     self.gcode.respond_info(f"ACE: Could not sync macro state on print stop: {e}")
 
+                # Clear any active spare-slot remap left from a swap during this print.
+                remap = self.manager.state.get("ace_active_remap", {})
+                if remap:
+                    self.gcode.respond_info(
+                        f"ACE: print ended, clearing active tool remap: {remap}"
+                    )
+                    self.manager.state.set_and_save("ace_active_remap", {})
+
                 return eventtime + 0.2
 
             # PAUSED or NOT PRINTING - sleep/relax monitoring
