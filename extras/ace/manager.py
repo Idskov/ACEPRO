@@ -1788,6 +1788,19 @@ class AceManager:
             target_tool: Target tool (-1 to unload only)
             is_endless_spool: If True, skip unload of current tool (already empty)
         """
+        # In-print spare-slot remap: if a previous endless-spool spare swap rewrote
+        # this primary, redirect transparently. Skip when called by the swap
+        # itself (is_endless_spool=True) so we do not re-enter the table.
+        if not is_endless_spool:
+            remap = self.state.get("ace_active_remap", {})
+            remap_normalized = {int(k): int(v) for k, v in remap.items()}
+            if target_tool in remap_normalized:
+                remapped = remap_normalized[target_tool]
+                self.gcode.respond_info(
+                    f"ACE: Tool remap active: T{target_tool} -> T{remapped}"
+                )
+                target_tool = remapped
+
         status = None
         gcode_move = self.printer.lookup_object("gcode_move")
 
