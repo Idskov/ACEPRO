@@ -1240,7 +1240,16 @@ def cmd_ACE_ENDLESS_SPOOL_STATUS(gcmd):
 
         gcmd.respond_info("=== ACE Endless Spool Status ===")
         gcmd.respond_info(f"Endless spool enabled: {endless_spool_enabled}")
-        gcmd.respond_info("Mode: Automatic switching on runout detection")
+
+        match_mode = manager.state.get("ace_endless_spool_match_mode", "exact")
+        mode_display = {
+            "exact": "EXACT (material + color)",
+            "material": "MATERIAL (material only)",
+            "next": "NEXT READY (any ready slot)",
+            "spare": "SPARE (pair-wise designation)",
+        }.get(match_mode, match_mode.upper())
+        gcmd.respond_info(f"Match mode: {mode_display}")
+
         gcmd.respond_info("Scope: Global (searches across all ACE instances)")
         gcmd.respond_info(f"Total ACE instances: {len(INSTANCE_MANAGERS)}")
 
@@ -1913,11 +1922,16 @@ def cmd_ACE_LIST_SPARES(gcmd):
 
 
 def cmd_ACE_GET_ENDLESS_SPOOL_MODE(gcmd):
-    """Query endless spool match mode (EXACT, MATERIAL, or NEXT READY)."""
+    """Query endless spool match mode (EXACT, MATERIAL, NEXT READY, or SPARE)."""
     try:
         manager = ace_get_manager(0)
         mode = manager.state.get("ace_endless_spool_match_mode", "exact")
-        mode_display = {"exact": "EXACT", "material": "MATERIAL", "next": "NEXT READY"}.get(mode, "EXACT")
+        mode_display = {
+            "exact": "EXACT",
+            "material": "MATERIAL",
+            "next": "NEXT READY",
+            "spare": "SPARE",
+        }.get(mode, "EXACT")
 
         gcmd.respond_info(f"ACE: Endless spool mode: {mode_display}")
 

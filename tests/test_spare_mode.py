@@ -118,3 +118,48 @@ class TestSetEndlessSpoolModeAcceptsSpare:
 
         assert "ace_endless_spool_match_mode" not in state_store, \
             "Invalid mode should not be persisted"
+
+
+class TestGetEndlessSpoolModeDisplaysSpare:
+    """Verify cmd_ACE_GET_ENDLESS_SPOOL_MODE shows SPARE when persisted state is 'spare'."""
+
+    def test_get_mode_shows_spare(self):
+        from unittest.mock import Mock, patch
+        from ace import commands as ace_commands
+
+        manager = Mock()
+        state = {"ace_endless_spool_match_mode": "spare"}
+        manager.state.get = Mock(side_effect=lambda k, d=None: state.get(k, d))
+
+        gcmd = Mock()
+        with patch.object(ace_commands, "ace_get_manager", return_value=manager):
+            ace_commands.cmd_ACE_GET_ENDLESS_SPOOL_MODE(gcmd)
+
+        calls = [str(c) for c in gcmd.respond_info.call_args_list]
+        full = " ".join(calls).upper()
+        assert "SPARE" in full, f"Expected SPARE in response, got: {full}"
+
+
+class TestEndlessSpoolStatusIncludesMode:
+    """Verify cmd_ACE_ENDLESS_SPOOL_STATUS prints the actual match mode."""
+
+    def test_status_includes_match_mode(self):
+        from unittest.mock import Mock, patch
+        from ace import commands as ace_commands
+
+        manager = Mock()
+        state = {
+            "ace_endless_spool_enabled": True,
+            "ace_endless_spool_match_mode": "spare",
+        }
+        manager.state.get = Mock(side_effect=lambda k, d=None: state.get(k, d))
+
+        gcmd = Mock()
+        with patch.object(ace_commands, "ace_get_manager", return_value=manager), \
+             patch.object(ace_commands, "INSTANCE_MANAGERS", {0: manager}):
+            ace_commands.cmd_ACE_ENDLESS_SPOOL_STATUS(gcmd)
+
+        calls = [str(c) for c in gcmd.respond_info.call_args_list]
+        full = " ".join(calls).lower()
+        # Must mention the actual mode name, not just generic text
+        assert "spare" in full, f"Status should include mode name 'spare', got: {full}"
