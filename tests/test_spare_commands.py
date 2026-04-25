@@ -80,3 +80,28 @@ class TestSetSpare:
         # Check that an info-level message mentions fan-in
         calls = [str(c) for c in gcmd.respond_info.call_args_list]
         assert any("fan-in" in c.lower() or "already" in c.lower() for c in calls)
+
+
+class TestClearSpare:
+    def test_clear_specific_primary(self, manager_with_state, gcmd):
+        manager_with_state._state_store["ace_spare_mapping"] = {0: 2, 1: 3}
+        gcmd.get_int = Mock(return_value=0)
+        with patch.object(ace_commands, "ace_get_manager", return_value=manager_with_state):
+            ace_commands.cmd_ACE_CLEAR_SPARE(gcmd)
+        assert manager_with_state._state_store["ace_spare_mapping"] == {1: 3}
+
+    def test_clear_all_when_primary_omitted(self, manager_with_state, gcmd):
+        manager_with_state._state_store["ace_spare_mapping"] = {0: 2, 1: 3}
+        gcmd.get_int = Mock(return_value=-1)  # sentinel for "not provided"
+        with patch.object(ace_commands, "ace_get_manager", return_value=manager_with_state):
+            ace_commands.cmd_ACE_CLEAR_SPARE(gcmd)
+        assert manager_with_state._state_store["ace_spare_mapping"] == {}
+
+    def test_clear_unknown_primary_is_noop(self, manager_with_state, gcmd):
+        manager_with_state._state_store["ace_spare_mapping"] = {0: 2}
+        gcmd.get_int = Mock(return_value=5)
+        with patch.object(ace_commands, "ace_get_manager", return_value=manager_with_state):
+            ace_commands.cmd_ACE_CLEAR_SPARE(gcmd)
+        assert manager_with_state._state_store["ace_spare_mapping"] == {0: 2}
+        calls = [str(c) for c in gcmd.respond_info.call_args_list]
+        assert any("nothing changed" in c.lower() for c in calls)

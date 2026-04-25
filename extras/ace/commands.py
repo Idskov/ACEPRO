@@ -1863,6 +1863,27 @@ def cmd_ACE_SET_SPARE(gcmd):
     gcmd.respond_info(f"ACE: spare designated, T{primary} -> T{spare}")
 
 
+def cmd_ACE_CLEAR_SPARE(gcmd):
+    """Clear one or all spare-slot pairs. [PRIMARY=<n>] (omit to clear all)."""
+    primary = gcmd.get_int("PRIMARY", -1)
+    manager = ace_get_manager(0)
+    spare_map = dict(manager.state.get("ace_spare_mapping", {}))
+    spare_map = {int(k): int(v) for k, v in spare_map.items()}
+
+    if primary < 0:
+        manager.state.set_and_save("ace_spare_mapping", {})
+        gcmd.respond_info("ACE: cleared all spare designations")
+        return
+
+    if primary not in spare_map:
+        gcmd.respond_info(f"ACE: no spare entry for T{primary}; nothing changed")
+        return
+
+    del spare_map[primary]
+    manager.state.set_and_save("ace_spare_mapping", spare_map)
+    gcmd.respond_info(f"ACE: cleared spare for T{primary}")
+
+
 def cmd_ACE_GET_ENDLESS_SPOOL_MODE(gcmd):
     """Query endless spool match mode (EXACT, MATERIAL, or NEXT READY)."""
     try:
@@ -2231,6 +2252,8 @@ ACE_COMMANDS = [
      "Set endless spool match mode. MODE=exact|material|next"),
     ("ACE_SET_SPARE", cmd_ACE_SET_SPARE,
      "Designate spare for a primary tool. PRIMARY=<n> SPARE=<m>"),
+    ("ACE_CLEAR_SPARE", cmd_ACE_CLEAR_SPARE,
+     "Clear spare designation. [PRIMARY=<n>] omit to clear all"),
     ("ACE_GET_ENDLESS_SPOOL_MODE", cmd_ACE_GET_ENDLESS_SPOOL_MODE, "Query current match mode"),
     ("ACE_CHANGE_TOOL", cmd_ACE_CHANGE_TOOL_WRAPPER, "Change tool or unload. TOOL=<index> or TOOL=-1"),
     ("ACE_SET_RETRACT_SPEED", cmd_ACE_SET_RETRACT_SPEED,
