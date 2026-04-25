@@ -85,6 +85,31 @@ class EndlessSpool:
 
         match_mode = self.get_match_mode()
 
+        if match_mode == "spare":
+            spare_map = self.manager.state.get("ace_spare_mapping", {})
+            target = spare_map.get(current_tool, spare_map.get(str(current_tool)))
+            if target is None or int(target) == current_tool:
+                logging.info(
+                    f"ACE: spare mode, no valid mapping for T{current_tool} -> -1"
+                )
+                return -1
+            target = int(target)
+            target_inst = get_instance_from_tool(target)
+            target_slot = get_local_slot(target, target_inst)
+            if target_inst < 0 or target_slot < 0:
+                return -1
+            cand_ace = ACE_INSTANCES.get(target_inst)
+            if not cand_ace:
+                return -1
+            if cand_ace.inventory[target_slot].get("status") != "ready":
+                logging.info(
+                    f"ACE: spare mode, T{target} not ready (status="
+                    f"{cand_ace.inventory[target_slot].get('status')})"
+                )
+                return -1
+            logging.info(f"ACE: spare mode match, T{current_tool} -> T{target}")
+            return target
+
         if match_mode == "material":
             logging.info(
                 f"ACE: Looking for endless spool match (MATERIAL ONLY): {current_material}"
