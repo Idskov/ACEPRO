@@ -107,3 +107,68 @@ class TestRemapGuardWiredUp:
         assert "Tool remap active" in snippet, "guard log line missing"
         assert "is_endless_spool" in snippet, "is_endless_spool bypass missing"
         assert "ace_active_remap" in snippet, "remap state key missing"
+
+
+class TestExecuteSwapRemap:
+    """Verify execute_swap writes ace_active_remap with transitive updates."""
+
+    def setup_method(self):
+        from ace.endless_spool import EndlessSpool
+        from ace.config import ACE_INSTANCES, SLOTS_PER_ACE
+
+        self.printer = Mock()
+        self.gcode = Mock()
+        self.manager = Mock()
+        self.state = {}
+
+        def state_get(key, default=None):
+            return self.state.get(key, default)
+
+        def state_set_and_save(key, value):
+            self.state[key] = value
+
+        self.manager.state.get = Mock(side_effect=state_get)
+        self.manager.state.set_and_save = Mock(side_effect=state_set_and_save)
+        self.manager.perform_tool_change = Mock(return_value="ok")
+        self.manager.gcode = self.gcode
+        self.manager._sync_inventory_to_persistent = Mock()
+
+        reactor = Mock()
+        reactor.monotonic = Mock(return_value=0.0)
+        self.printer.get_reactor = Mock(return_value=reactor)
+
+        ACE_INSTANCES.clear()
+        instance = Mock()
+        instance.instance_num = 0
+        instance.SLOT_COUNT = SLOTS_PER_ACE
+        instance.inventory = [
+            {"status": "ready", "material": "PETG", "color": [0, 0, 0]}
+            for _ in range(SLOTS_PER_ACE)
+        ]
+        ACE_INSTANCES[0] = instance
+        self.manager.instances = {0: instance}
+
+        self.endless_spool = EndlessSpool(self.printer, self.gcode, self.manager)
+
+    def teardown_method(self):
+        from ace.config import ACE_INSTANCES
+        ACE_INSTANCES.clear()
+
+    def test_simple_swap_writes_remap(self):
+        self.endless_spool.execute_swap(from_tool=0, to_tool=2)
+        assert self.state.get("ace_active_remap") == {0: 2}
+
+    def test_chain_swap_transitive_update(self):
+        # Pre-existing remap from a prior swap: T0 was served by T2
+        self.state["ace_active_remap"] = {0: 2}
+        # Now T2 runs out and swaps to T4. The {0: 2} entry must update to {0: 4}.
+        self.endless_spool.execute_swap(from_tool=2, to_tool=4)
+        assert self.state.get("ace_active_remap") == {0: 4, 2: 4}
+
+    def test_failed_swap_does_not_write_remap(self):
+        self.manager.perform_tool_change = Mock(side_effect=Exception("nope"))
+        try:
+            self.endless_spool.execute_swap(from_tool=0, to_tool=2)
+        except Exception:
+            pass
+        assert "ace_active_remap" not in self.state

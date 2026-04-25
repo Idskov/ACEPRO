@@ -233,6 +233,17 @@ class EndlessSpool:
                     status = self.manager.perform_tool_change(from_tool, current_target_tool, is_endless_spool=True)
                     self.gcode.respond_info(f"ACE: {status}")
 
+                    # Write the active remap so subsequent T<from_tool> requests are
+                    # transparently served by current_target_tool. Apply transitive update
+                    # to keep chain remaps consistent across multiple runouts in the same print.
+                    raw_remap = self.manager.state.get("ace_active_remap", {})
+                    remap = {int(k): int(v) for k, v in raw_remap.items()} if isinstance(raw_remap, dict) else {}
+                    for k in list(remap):
+                        if remap[k] == from_tool:
+                            remap[k] = current_target_tool
+                    remap[from_tool] = current_target_tool
+                    self.manager.state.set_and_save("ace_active_remap", remap)
+
                     self.gcode.respond_info("ACE: Resuming print")
                     self.manager.gcode.run_script_from_command("RESUME PURGE=0")
 
