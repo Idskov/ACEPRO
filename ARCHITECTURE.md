@@ -227,7 +227,7 @@ EndlessSpool focuses purely on:
 
 **Key Methods:**
 ```python
-get_match_mode()                    # Get match mode ("exact", "material", "next") from saved_variables
+get_match_mode()                    # Get match mode ("exact", "material", "next", "spare") from saved_variables
 
 find_exact_match(current_tool)      # Search for a match across all slots (mode-aware search)
 
@@ -766,7 +766,7 @@ ACE_DISABLE_ENDLESS_SPOOL                  # Disable auto-swap
 
 ACE_ENDLESS_SPOOL_STATUS                   # Query endless spool configuration
 
-ACE_SET_ENDLESS_SPOOL_MODE MODE=exact|material|next
+ACE_SET_ENDLESS_SPOOL_MODE MODE=exact|material|next|spare
                                            # Set match mode:
                                            # "exact": match material AND color (default)
                                            # "material": match material only
@@ -989,7 +989,7 @@ def ace_get_instance_and_slot(gcmd):
    - User must click RESUME after refilling
    ↓
 7b. If Endless Spool ENABLED:
-   - EndlessSpool.find_exact_match(tool_index) (mode-aware: exact/material/next)
+   - EndlessSpool.find_exact_match(tool_index) (mode-aware: exact/material/next/spare)
    - Search all instances according to match mode
    ↓
 8a. If NO MATCH Found:

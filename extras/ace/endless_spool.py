@@ -59,9 +59,13 @@ class EndlessSpool:
         Match mode (configurable via ace_endless_spool_match_mode):
         - "exact": Match both material AND color (default)
         - "material": Match material only, ignore color
+        - "next": First ready slot regardless of attributes
+        - "spare": Pair-wise designation via ace_spare_mapping (no offset search)
 
-        Searches all slots in all instances, starting from the next tool
-        and wrapping around.
+        For exact/material/next, searches all slots in all instances,
+        starting from the next tool and wrapping around. For spare mode,
+        returns the explicitly designated spare for current_tool (or -1
+        if none configured or the spare is not ready).
 
         Args:
             current_tool: Tool index with runout (0-based)

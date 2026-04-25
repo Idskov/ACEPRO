@@ -2291,7 +2291,7 @@ ACE_COMMANDS = [
     ("ACE_DEBUG_INJECT_SENSOR_STATE", cmd_ACE_DEBUG_INJECT_SENSOR_STATE,
      "Inject sensor state for testing. TOOLHEAD=0/1 RDM=0/1 or RESET=1"),
     ("ACE_SET_ENDLESS_SPOOL_MODE", cmd_ACE_SET_ENDLESS_SPOOL_MODE,
-     "Set endless spool match mode. MODE=exact|material|next"),
+     "Set endless spool match mode. MODE=exact|material|next|spare"),
     ("ACE_SET_SPARE", cmd_ACE_SET_SPARE,
      "Designate spare for a primary tool. PRIMARY=<n> SPARE=<m>"),
     ("ACE_CLEAR_SPARE", cmd_ACE_CLEAR_SPARE,
