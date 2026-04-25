@@ -1884,6 +1884,29 @@ def cmd_ACE_CLEAR_SPARE(gcmd):
     gcmd.respond_info(f"ACE: cleared spare for T{primary}")
 
 
+def cmd_ACE_LIST_SPARES(gcmd):
+    """Show the current spare-slot designations and any active remap."""
+    manager = ace_get_manager(0)
+    spare_map = manager.state.get("ace_spare_mapping", {})
+    active_remap = manager.state.get("ace_active_remap", {})
+
+    if not spare_map:
+        gcmd.respond_info("ACE: no spare designations configured")
+    else:
+        gcmd.respond_info("ACE: spare designations (ace_spare_mapping):")
+        for primary in sorted(int(k) for k in spare_map):
+            spare = int(spare_map.get(primary, spare_map.get(str(primary))))
+            gcmd.respond_info(f"  T{primary} -> T{spare}")
+
+    if not active_remap:
+        gcmd.respond_info("ACE: no active remap (no swap has occurred this print)")
+    else:
+        gcmd.respond_info("ACE: active remap (ace_active_remap):")
+        for primary in sorted(int(k) for k in active_remap):
+            served_by = int(active_remap.get(primary, active_remap.get(str(primary))))
+            gcmd.respond_info(f"  T{primary} -> T{served_by}")
+
+
 def cmd_ACE_GET_ENDLESS_SPOOL_MODE(gcmd):
     """Query endless spool match mode (EXACT, MATERIAL, or NEXT READY)."""
     try:
@@ -2254,6 +2277,8 @@ ACE_COMMANDS = [
      "Designate spare for a primary tool. PRIMARY=<n> SPARE=<m>"),
     ("ACE_CLEAR_SPARE", cmd_ACE_CLEAR_SPARE,
      "Clear spare designation. [PRIMARY=<n>] omit to clear all"),
+    ("ACE_LIST_SPARES", cmd_ACE_LIST_SPARES,
+     "Show current spare designations and active remap"),
     ("ACE_GET_ENDLESS_SPOOL_MODE", cmd_ACE_GET_ENDLESS_SPOOL_MODE, "Query current match mode"),
     ("ACE_CHANGE_TOOL", cmd_ACE_CHANGE_TOOL_WRAPPER, "Change tool or unload. TOOL=<index> or TOOL=-1"),
     ("ACE_SET_RETRACT_SPEED", cmd_ACE_SET_RETRACT_SPEED,

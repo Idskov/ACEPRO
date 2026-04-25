@@ -105,3 +105,22 @@ class TestClearSpare:
         assert manager_with_state._state_store["ace_spare_mapping"] == {0: 2}
         calls = [str(c) for c in gcmd.respond_info.call_args_list]
         assert any("nothing changed" in c.lower() for c in calls)
+
+
+class TestListSpares:
+    def test_lists_both_maps(self, manager_with_state, gcmd):
+        manager_with_state._state_store["ace_spare_mapping"] = {0: 2}
+        manager_with_state._state_store["ace_active_remap"] = {0: 2}
+        gcmd.get_int = Mock(return_value=-1)
+        with patch.object(ace_commands, "ace_get_manager", return_value=manager_with_state):
+            ace_commands.cmd_ACE_LIST_SPARES(gcmd)
+        full = " ".join(str(c) for c in gcmd.respond_info.call_args_list).lower()
+        assert "spare_mapping" in full or "designations" in full
+        assert "active_remap" in full or "active remap" in full
+        assert "t0" in full and "t2" in full
+
+    def test_empty_maps(self, manager_with_state, gcmd):
+        with patch.object(ace_commands, "ace_get_manager", return_value=manager_with_state):
+            ace_commands.cmd_ACE_LIST_SPARES(gcmd)
+        full = " ".join(str(c) for c in gcmd.respond_info.call_args_list).lower()
+        assert "no spare designations" in full or "empty" in full
