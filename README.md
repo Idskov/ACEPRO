@@ -1173,6 +1173,48 @@ All inventory and state is automatically saved to `saved_variables.cfg`:
 
 📖 **See [ARCHITECTURE.md - Runout Detection Flow](ARCHITECTURE.md#runout-detection-flow) for detailed sequence diagram**
 
+### Spare-Slot Designation (`spare` mode)
+
+In addition to `exact`, `material`, and `next`, the driver supports a
+`spare` mode that uses an explicit primary-to-spare map instead of
+attribute matching. When a primary slot runs out, the driver swaps to
+its designated spare and remaps subsequent `T<primary>` requests to the
+spare for the rest of the print.
+
+**Designate a spare:**
+
+```gcode
+ACE_SET_SPARE PRIMARY=0 SPARE=2
+ACE_SET_ENDLESS_SPOOL_MODE MODE=spare
+ACE_ENABLE_ENDLESS_SPOOL
+```
+
+**Clear designations:**
+
+```gcode
+ACE_CLEAR_SPARE PRIMARY=0    # remove one pair
+ACE_CLEAR_SPARE              # remove all pairs
+```
+
+**Inspect state:**
+
+```gcode
+ACE_LIST_SPARES
+```
+
+**Behaviors:**
+- The spare slot remains usable for its own print roles; designation
+  does not lock it.
+- After a swap, the in-print remap routes all `T<primary>` requests to
+  the spare. The remap is cleared automatically at print end.
+- Chain runouts: if a spare also runs out and has its own spare, all
+  earlier remap entries pointing at the now-empty slot are forwarded
+  to the new slot.
+- Fan-in: a single slot may be designated as spare for multiple
+  primaries.
+- If `spare` mode is set but no mapping is configured (or the spare is
+  not `ready`), runout falls back to the existing pause+prompt flow.
+
 ## ⚠️ Error Recovery & Toolchange Failure Handling
 
 ACE Pro includes error handling for toolchange failures with interactive recovery dialogs.
