@@ -78,3 +78,43 @@ class TestSpareModeFind:
         # Defensive: even if persisted state is corrupted
         self.manager.state.get = Mock(return_value={0: 0})
         assert self.endless_spool.find_exact_match(0) == -1
+
+
+class TestSetEndlessSpoolModeAcceptsSpare:
+    """Verify cmd_ACE_SET_ENDLESS_SPOOL_MODE accepts MODE=spare and persists it."""
+
+    def test_set_mode_spare_persists(self):
+        from unittest.mock import Mock, patch
+        from ace import commands as ace_commands
+
+        manager = Mock()
+        state_store = {}
+        manager.state.get = Mock(side_effect=lambda k, d=None: state_store.get(k, d))
+        manager.state.set_and_save = Mock(side_effect=lambda k, v: state_store.__setitem__(k, v))
+
+        gcmd = Mock()
+        gcmd.get = Mock(return_value="spare")
+
+        with patch.object(ace_commands, "ace_get_manager", return_value=manager):
+            ace_commands.cmd_ACE_SET_ENDLESS_SPOOL_MODE(gcmd)
+
+        assert state_store.get("ace_endless_spool_match_mode") == "spare", \
+            "MODE=spare should persist as 'spare' in saved state"
+
+    def test_set_mode_invalid_rejected(self):
+        from unittest.mock import Mock, patch
+        from ace import commands as ace_commands
+
+        manager = Mock()
+        state_store = {}
+        manager.state.get = Mock(side_effect=lambda k, d=None: state_store.get(k, d))
+        manager.state.set_and_save = Mock(side_effect=lambda k, v: state_store.__setitem__(k, v))
+
+        gcmd = Mock()
+        gcmd.get = Mock(return_value="bogus")
+
+        with patch.object(ace_commands, "ace_get_manager", return_value=manager):
+            ace_commands.cmd_ACE_SET_ENDLESS_SPOOL_MODE(gcmd)
+
+        assert "ace_endless_spool_match_mode" not in state_store, \
+            "Invalid mode should not be persisted"

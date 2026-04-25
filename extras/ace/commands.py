@@ -1801,13 +1801,18 @@ def cmd_ACE_DEBUG_INJECT_SENSOR_STATE(gcmd):
 
 
 def cmd_ACE_SET_ENDLESS_SPOOL_MODE(gcmd):
-    """Set endless spool match mode. MODE=exact|material|next"""
+    """Set endless spool match mode. MODE=exact|material|next|spare"""
     try:
         mode = gcmd.get("MODE", "exact").lower()
-        valid_modes = {"exact": "EXACT", "material": "MATERIAL", "next": "NEXT READY"}
+        valid_modes = {
+            "exact": "EXACT",
+            "material": "MATERIAL",
+            "next": "NEXT READY",
+            "spare": "SPARE",
+        }
 
         if mode not in valid_modes:
-            gcmd.respond_info("ACE: Invalid mode. Use MODE=exact, MODE=material, or MODE=next")
+            gcmd.respond_info("ACE: Invalid mode. Use MODE=exact, MODE=material, MODE=next, or MODE=spare")
             return
 
         manager = ace_get_manager(0)
