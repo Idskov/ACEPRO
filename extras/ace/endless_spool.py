@@ -47,7 +47,7 @@ class EndlessSpool:
         mode = self.manager.state.get("ace_endless_spool_match_mode", "exact")
 
         # Normalize/guardrail unexpected values
-        if mode not in {"exact", "material", "next"}:
+        if mode not in {"exact", "material", "next", "spare"}:
             mode = "exact"
 
         return mode
