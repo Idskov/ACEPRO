@@ -11,6 +11,7 @@ import logging
 
 from .config import (
     ACE_INSTANCES,
+    SLOTS_PER_ACE,
     INSTANCE_MANAGERS,
     SENSOR_TOOLHEAD,
     SENSOR_RDM,
@@ -1819,6 +1820,49 @@ def cmd_ACE_SET_ENDLESS_SPOOL_MODE(gcmd):
         gcmd.respond_info(f"ACE_SET_ENDLESS_SPOOL_MODE error: {e}")
 
 
+def cmd_ACE_SET_SPARE(gcmd):
+    """Set a spare-slot pair. PRIMARY=<n> SPARE=<m>"""
+    primary = gcmd.get_int("PRIMARY", -1)
+    spare = gcmd.get_int("SPARE", -1)
+
+    total_tools = len(ACE_INSTANCES) * SLOTS_PER_ACE
+    if primary < 0 or primary >= total_tools:
+        raise gcmd.error(f"PRIMARY out of range (0..{total_tools - 1})")
+    if spare < 0 or spare >= total_tools:
+        raise gcmd.error(f"SPARE out of range (0..{total_tools - 1})")
+    if primary == spare:
+        raise gcmd.error(f"T{primary} cannot be its own spare")
+
+    manager = ace_get_manager(0)
+    spare_map = dict(manager.state.get("ace_spare_mapping", {}))
+    # Normalize keys to int (saved_variables may stringify)
+    spare_map = {int(k): int(v) for k, v in spare_map.items()}
+
+    fan_in = any(v == spare for v in spare_map.values())
+    if fan_in:
+        gcmd.respond_info(
+            f"ACE: T{spare} is already designated as spare for another primary "
+            f"(fan-in). All affected primaries will redirect to T{spare} on runout."
+        )
+
+    # Optional warn if spare slot is not ready right now
+    spare_inst = get_instance_from_tool(spare)
+    spare_slot = get_local_slot(spare, spare_inst)
+    if spare_inst >= 0 and spare_slot >= 0:
+        ace_inst = ACE_INSTANCES.get(spare_inst)
+        if ace_inst:
+            status = ace_inst.inventory[spare_slot].get("status")
+            if status != "ready":
+                gcmd.respond_info(
+                    f"ACE: warning, T{spare} status is '{status}' (not 'ready'); "
+                    f"the spare will not be used on runout until refilled"
+                )
+
+    spare_map[primary] = spare
+    manager.state.set_and_save("ace_spare_mapping", spare_map)
+    gcmd.respond_info(f"ACE: spare designated, T{primary} -> T{spare}")
+
+
 def cmd_ACE_GET_ENDLESS_SPOOL_MODE(gcmd):
     """Query endless spool match mode (EXACT, MATERIAL, or NEXT READY)."""
     try:
@@ -2185,6 +2229,8 @@ ACE_COMMANDS = [
      "Inject sensor state for testing. TOOLHEAD=0/1 RDM=0/1 or RESET=1"),
     ("ACE_SET_ENDLESS_SPOOL_MODE", cmd_ACE_SET_ENDLESS_SPOOL_MODE,
      "Set endless spool match mode. MODE=exact|material|next"),
+    ("ACE_SET_SPARE", cmd_ACE_SET_SPARE,
+     "Designate spare for a primary tool. PRIMARY=<n> SPARE=<m>"),
     ("ACE_GET_ENDLESS_SPOOL_MODE", cmd_ACE_GET_ENDLESS_SPOOL_MODE, "Query current match mode"),
     ("ACE_CHANGE_TOOL", cmd_ACE_CHANGE_TOOL_WRAPPER, "Change tool or unload. TOOL=<index> or TOOL=-1"),
     ("ACE_SET_RETRACT_SPEED", cmd_ACE_SET_RETRACT_SPEED,
