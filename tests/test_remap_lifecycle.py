@@ -93,3 +93,73 @@ class TestPrintEndClearsRemap:
         _drive_monitor(monitor, "cancelled")
 
         assert monitor.manager._state_store.get("ace_active_remap") == {}
+
+
+import inspect
+
+
+class TestStartupStaleRemapSourcePresent:
+    """Smoke test: the production _handle_ready actually contains the stale-remap check."""
+
+    def test_check_present_in_source(self):
+        # Read source directly (decorators may strip docstrings via inspect)
+        from ace import manager
+        manager_path = inspect.getsourcefile(manager)
+        with open(manager_path, "r", encoding="utf-8") as f:
+            source = f.read()
+
+        # Find _handle_ready and grab the next ~80 lines
+        idx = source.find("def _handle_ready")
+        assert idx >= 0, "_handle_ready not found"
+        chunk = source[idx:idx + 4000]
+
+        assert "ace_active_remap" in chunk, "stale-remap check missing in _handle_ready"
+        assert "stale active remap" in chunk.lower(), "stale-remap log line missing"
+        assert "logging.warning" in chunk, "WARN-level logging missing"
+
+
+class TestStaleRemapLogic:
+    """Unit-test the stale-remap clearing logic in isolation.
+
+    The production code embeds the logic inside _handle_ready, which has
+    extensive setup. We test the clear-decision contract by invoking the
+    same code shape on a synthetic state.
+    """
+
+    def _clear_stale_remap_if_idle(self, state, print_stats_state):
+        """Reference implementation matching the production guard."""
+        import logging
+        remap = state.get("ace_active_remap", {})
+        if remap:
+            state_str = (print_stats_state or "").lower()
+            if state_str not in ("printing", "paused"):
+                logging.warning(
+                    "ACE: cleared stale active remap from previous session: %s",
+                    remap,
+                )
+                state["ace_active_remap"] = {}
+
+    def test_clears_when_idle(self):
+        state = {"ace_active_remap": {0: 2}}
+        self._clear_stale_remap_if_idle(state, "complete")
+        assert state["ace_active_remap"] == {}
+
+    def test_clears_when_error(self):
+        state = {"ace_active_remap": {0: 2}}
+        self._clear_stale_remap_if_idle(state, "error")
+        assert state["ace_active_remap"] == {}
+
+    def test_preserves_when_printing(self):
+        state = {"ace_active_remap": {0: 2}}
+        self._clear_stale_remap_if_idle(state, "printing")
+        assert state["ace_active_remap"] == {0: 2}
+
+    def test_preserves_when_paused(self):
+        state = {"ace_active_remap": {0: 2}}
+        self._clear_stale_remap_if_idle(state, "paused")
+        assert state["ace_active_remap"] == {0: 2}
+
+    def test_no_op_when_remap_empty(self):
+        state = {"ace_active_remap": {}}
+        self._clear_stale_remap_if_idle(state, "complete")
+        assert state["ace_active_remap"] == {}

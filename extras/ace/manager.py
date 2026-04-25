@@ -284,6 +284,26 @@ class AceManager:
         Sets up toolhead reference, connects ACE instances, initializes sensors, starts monitoring.
         """
 
+        # Stale active-remap detection: if a print crashed mid-swap and left
+        # ace_active_remap populated, clear it before the first runout-monitor
+        # tick. Only clear when print_stats indicates we are not resuming a
+        # paused or in-progress print.
+        remap = self.state.get("ace_active_remap", {})
+        if remap:
+            print_stats = self.printer.lookup_object("print_stats", None)
+            state_str = ""
+            if print_stats is not None:
+                try:
+                    state_str = (print_stats.get_status(None).get("state") or "").lower()
+                except Exception:
+                    state_str = ""
+            if state_str not in ("printing", "paused"):
+                logging.warning(
+                    "ACE: cleared stale active remap from previous session: %s",
+                    remap,
+                )
+                self.state.set_and_save("ace_active_remap", {})
+
         # Set toolhead on all instances
         toolhead = self.printer.lookup_object("toolhead")
         for instance in self.instances:
